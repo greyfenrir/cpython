@@ -46,6 +46,19 @@
 
 #define POSIX_CALL(call)   do { if ((call) == -1) goto error; } while (0)
 
+void printLog(const char *fmt, ...)
+{
+  FILE* pFile = fopen("/tmp/out.python.debug", "a");
+  if(pFile != NULL)
+  {
+   va_list args;
+   va_start(args, fmt);
+   vfprintf(pFile, fmt, args);
+   va_end(args);
+   fclose(pFile);
+  }
+}
+
 
 /* If gc was disabled, call gc.enable().  Return 0 on success. */
 static int
@@ -501,13 +514,16 @@ child_exec(char *const exec_array[],
     for (i = 0; exec_array[i] != NULL; ++i) {
         const char *executable = exec_array[i];
         if (envp) {
+			printLog("execve(%s)\n", argv);
             execve(executable, argv, envp);
         } else {
+			printLog("execv(%s)\n", argv);
             execv(executable, argv);
         }
         if (errno != ENOENT && errno != ENOTDIR && saved_errno == 0) {
             saved_errno = errno;
         }
+        printLog("after execve/execv\n");
     }
     /* Report the first exec error, not the last. */
     if (saved_errno)
@@ -673,6 +689,7 @@ subprocess_fork_exec(PyObject* self, PyObject *args)
         cwd_obj2 = NULL;
     }
 
+    printLog("before fork(%s)\n", argv);
     pid = fork();
     if (pid == 0) {
         /* Child process */
@@ -689,7 +706,7 @@ subprocess_fork_exec(PyObject* self, PyObject *args)
              * to avoid deadlock... */
             PyOS_AfterFork();
         }
-
+		printLog("child: before exec\n");
         child_exec(exec_array, argv, envp, cwd,
                    p2cread, p2cwrite, c2pread, c2pwrite,
                    errread, errwrite, errpipe_read, errpipe_write,
